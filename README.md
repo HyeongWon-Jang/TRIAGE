@@ -41,14 +41,14 @@ The models expect a task-specific input/output template; the full inference pipe
 
 ## Data
 
-| Data | Source | Processed (Raindrop, CC BY 4.0) |
+| Data | Original | Raindrop preprocessed |
 |---|---|---|
 | **P12** | [PhysioNet Challenge 2012](https://physionet.org/content/challenge-2012/1.0.0/), in-hospital mortality | [figshare](https://doi.org/10.6084/m9.figshare.19514341.v1) |
 | **P19** | [PhysioNet Challenge 2019](https://physionet.org/content/challenge-2019/1.0.0/), sepsis early prediction | [figshare](https://doi.org/10.6084/m9.figshare.19514338.v1) |
 
 **MIMIC-III.** A separate, access-controlled release of checkpoints based on MIMIC-III is under consideration, owing to the dataset's credentialed-access license (MIMIC-III derivatives cannot be redistributed openly).
 
-Preprocessing and split-construction details will be documented with the code release.
+TRIAGE builds on the Raindrop release with additional preprocessing and split construction; the full pipeline will accompany the code release.
 
 ## License
 
