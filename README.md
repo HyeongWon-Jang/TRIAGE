@@ -115,7 +115,7 @@ Each dataset has a `data/<name>/process_script/` folder (initial preprocessing a
 **SFT data format.** `sft.py` consumes a JSON file (path set via `dataset_path` in the recipe) where each example has:
 
 - **`prompt`**: a chat-style list, e.g. `[{"role": "user", "content": "..."}]`.
-- **`completion`**: the target dialectical reasoning and risk decision.
+- **`completion`**: a chat-style list, e.g. `[{"role": "assistant", "content": "..."}]`, holding the dialectical rationales and the final 0/1 answer.
 - **`MOR_label`** (P12, MIMIC-III) or **`SepsisLabel`** (P19): an `int` label (`0`/`1`) used by the class-balanced sampler.
 
 ## 🔥 Running SFT
@@ -132,7 +132,7 @@ accelerate launch \
     --config recipes/p12_triage_sft_split1.yaml
 ```
 
-`recipes/p12_triage_sft_split1.yaml` holds the P12 SFT config. The split shown is only an example: within a dataset the hyperparameters are the same for every split, so just point `dataset_path` at the split you want and set `hub_model_id`. P19 and MIMIC-III have their own recipes, [`recipes/p19_triage_sft_split1.yaml`](recipes/p19_triage_sft_split1.yaml) and [`recipes/mimic3_triage_sft_seed42.yaml`](recipes/mimic3_triage_sft_seed42.yaml) (MIMIC-III has one fixed split from KEDGN, so its recipe is named by the training seed).
+[`recipes/p12_triage_sft_split1.yaml`](recipes/p12_triage_sft_split1.yaml) holds the P12 SFT config. The split shown is only an example: within a dataset the hyperparameters are the same for every split, so just point `dataset_path` at the split you want and set `hub_model_id`. P19 and MIMIC-III have their own recipes, [`recipes/p19_triage_sft_split1.yaml`](recipes/p19_triage_sft_split1.yaml) and [`recipes/mimic3_triage_sft_seed42.yaml`](recipes/mimic3_triage_sft_seed42.yaml) (MIMIC-III has one fixed split from KEDGN, so its recipe is named by the training seed).
 
 ## Inference & Evaluation
 
