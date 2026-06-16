@@ -1,0 +1,7 @@
+./data/P12/*json
+
+# Large processed data arrays are not redistributed publicly.
+*.npy
+
+# Except the P19 cross-validation split index files (no patient data), which we provide.
+!data/P19/splits/*.npy
