@@ -41,17 +41,83 @@ MIMIC-III checkpoints are not listed above; as credentialed-access data, their r
 
 ### Quick start
 
-```python
-from transformers import AutoModelForCausalLM, AutoTokenizer
+The models expect the same chat-style `prompt` used during training (see [Data](#data-preprocessing)). Inference proceeds in two steps: (1) **sample** the dialectical reasoning at `temperature=0.7`, and (2) at the `## Final Decision` step, read the next-token log-probabilities of `"0"` (survival) and `"1"` (in-hospital death) and **renormalize over these two tokens** into a single continuous risk score.
 
-split = "split_1"  # one of split_1 ... split_5
-repo  = "Hyeongwon/TRIAGE-4B-P19-SFT-RL"
+```python
+import json
+import torch
+import torch.nn.functional as F
+from transformers import (
+    AutoModelForCausalLM, AutoTokenizer,
+    StoppingCriteria, StoppingCriteriaList,
+)
+
+split = "split_1"                       # one of split_1 ... split_5
+repo  = "Hyeongwon/TRIAGE-4B-P12-SFT"   # or the SFT+RL checkpoint, e.g. *-SFT-RL
 
 tokenizer = AutoTokenizer.from_pretrained(repo, subfolder=split)
-model     = AutoModelForCausalLM.from_pretrained(repo, subfolder=split, device_map="auto")
+model = AutoModelForCausalLM.from_pretrained(
+    repo, subfolder=split, torch_dtype="auto", device_map="auto"
+).eval()
+
+# Single-token ids for the two decision classes: "0" (survival) / "1" (in-hospital death).
+ID_0 = tokenizer.encode("0", add_special_tokens=False)[-1]
+ID_1 = tokenizer.encode("1", add_special_tokens=False)[-1]
+HEADER = "## Final Decision"
+
+
+class StopAfterHeader(StoppingCriteria):
+    """Stop generation as soon as the model has written the decision header."""
+
+    def __init__(self, tokenizer, start_len):
+        self.tokenizer, self.start_len = tokenizer, start_len
+
+    def __call__(self, input_ids, scores, **kwargs):
+        text = self.tokenizer.decode(input_ids[0, self.start_len:], skip_special_tokens=True)
+        return torch.full(
+            (input_ids.shape[0],), HEADER in text, dtype=torch.bool, device=input_ids.device
+        )
+
+
+@torch.no_grad()
+def predict_risk(prompt, temperature=0.7, max_new_tokens=1024):
+    # prompt: a chat-style list, e.g. [{"role": "user", "content": "...ICU features..."}]
+
+    # 1) Sample the dialectical reasoning at T=0.7, stopping right after the header.
+    input_ids = tokenizer.apply_chat_template(
+        prompt, add_generation_prompt=True, return_tensors="pt"
+    ).to(model.device)
+    stopping = StoppingCriteriaList([StopAfterHeader(tokenizer, input_ids.shape[1])])
+    out = model.generate(
+        input_ids,
+        do_sample=True, temperature=temperature, top_p=1.0,
+        max_new_tokens=max_new_tokens, stopping_criteria=stopping,
+    )
+    reasoning = tokenizer.decode(out[0, input_ids.shape[1]:], skip_special_tokens=True)
+    assert HEADER in reasoning, "model did not produce the decision header"
+
+    # 2) Build the prefix that ends exactly at "## Final Decision\n", so the very
+    #    next token the model predicts is the decision digit.
+    reasoning = reasoning[: reasoning.index(HEADER) + len(HEADER)] + "\n"
+    prefix = tokenizer.apply_chat_template(
+        prompt, add_generation_prompt=True, tokenize=False
+    ) + reasoning
+    ids = tokenizer(prefix, return_tensors="pt", add_special_tokens=False).to(model.device)
+
+    # 3) Read the raw next-token logits and renormalize over {"0", "1"} only.
+    logits = model(**ids).logits[0, -1]
+    p_survival, p_death = F.softmax(torch.stack([logits[ID_0], logits[ID_1]]), dim=-1).tolist()
+    return {"reasoning": reasoning, "p_survival": p_survival, "p_death": p_death}
+
+
+# Example: load one preprocessed (prompt-only) validation example and score it.
+prompt = json.load(open("PATH_to_p12_split1_val.json"))[0]["prompt"] # Change the path here
+result = predict_risk(prompt)
+print(result["reasoning"])
+print(f"P(in-hospital mortality) = {result['p_death']:.4f}")
 ```
 
-The models expect the same chat-style `prompt` used during training (see [Data](#data-preprocessing)).
+> The snippet above scores a **single** ordering of the competing outcomes. To reproduce the paper's risk score, run the two outcome orderings by adding a prefix (e.g. *'## Rationale for survival\n'*, *'## Rationale for in-hospital death\n'*) and average their `p_death` (see [Inference & Evaluation](#inference--evaluation)); production evaluation is served with SGLang for throughput.
 
 ## Repository Structure
 
