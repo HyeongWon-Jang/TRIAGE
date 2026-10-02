@@ -1,7 +1,64 @@
-./data/P12/*json
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
 
-# Large processed data arrays are not redistributed publicly.
+# Run outputs
+outputs/
+results/
+logs/
+models/
+wandb/
+ckpts/
+rollout_save_folder_*/
+validation_save_folder_*/
+.torchinductor_cache/
+.triton_cache/
+log/
+
+# Datasets and anything derived from them are never redistributed. MIMIC-III, MIMIC-IV
+# and eICU are credentialed; P12 and P19 carry their own licence terms. The rendered
+# prompts and the assembled SFT/RL files contain patient records either way.
 *.npy
+*.npz
+*.csv
+*.csv.gz
+*.psv
+*.parquet
+*.feather
+*.h5
+*.hdf5
+*.pkl
+*.pt
+*.jsonl
+triage_sft/data/**/*.json
+filtered_train_json/
+stay_token_lengths.json
 
-# Except the P19 cross-validation split index files (no patient data), which we provide.
-!data/P19/splits/*.npy
+# Anything the code writes while you run it. Evaluation and debug output carry prompts,
+# labels and model responses, and SFT/RL runs write checkpoints into the tree.
+triage_sft/model/
+triage_rl/exp/data/
+triage_rl/exp/*.txt
+rollout_save_folder_*/
+validation_save_folder_*/
+debug_generate/
+checkpoints/
+ckpts/
+outputs/
+*.safetensors
+
+# The cross-validation split files are the one exception: each is a permutation of the
+# integers 0..N-1 partitioned into train / validation / test, i.e. positions into the
+# processed store, and contains no patient data. MIMIC-III has no entry here because it
+# uses one fixed split from KEDGN and varies the training seed instead.
+!triage_sft/data/P12/splits/*.npy
+!triage_sft/data/P19/splits/*.npy
+!triage_sft/data/eicu/splits/*.npy
+!triage_sft/data/mimic4/splits/*.npy
+
+
+# Editor / OS state
+.vscode/
+.idea/
+.DS_Store
+**/.omc/
